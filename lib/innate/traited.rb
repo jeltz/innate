@@ -27,6 +27,9 @@ module Innate
   #   foo.show          # => ["Hello", "World!", "World!"]
   module Traited
     TRAITS = {}
+    # The two hases below are used for caching the ancestral traits.
+    ANCESTRAL_TRAITS = {}
+    ANCESTRAL_VALUES = {}
 
     def self.included(into)
       into.extend(self)
@@ -36,6 +39,8 @@ module Innate
       if hash
         TRAITS[self] ||= {}
         TRAITS[self].merge!(hash)
+        ANCESTRAL_TRAITS.clear
+        ANCESTRAL_VALUES.clear
       else
         TRAITS[self] || {}
       end
@@ -59,16 +64,23 @@ module Innate
     #
     # Foobar.ancestral_trait
     # # => {:three => :drei, :two => :zwei, :one => :eins, :first => :overwritten}
+
     def ancestral_trait
-      result = {}
-      each_ancestral_trait{|trait| result.merge!(trait) }
-      result
+      klass = self.kind_of?(Module) ? self : self.class
+      ANCESTRAL_TRAITS[klass] ||= (
+        result = {}
+        each_ancestral_trait{|trait| result.merge!(trait) }
+        result
+      )
     end
 
     def ancestral_trait_values(key)
-      result = []
-      each_ancestral_trait{|trait| result << trait[key] if trait.key?(key) }
-      result
+      klass = self.kind_of?(Module) ? self : self.class
+      (ANCESTRAL_VALUES[klass] ||= {})[key] ||= (
+        result = []
+        each_ancestral_trait{|trait| result << trait[key] if trait.key?(key) }
+        result
+      )
     end
 
     def each_ancestral_trait
